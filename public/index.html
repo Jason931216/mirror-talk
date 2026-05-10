@@ -133,22 +133,12 @@ if(vs.length)savedVoices=vs;
 }
 function speak(text){
 speechSynthesis.cancel();
-if(!savedVoices.length)loadVoices();
 const u=new SpeechSynthesisUtterance(text);
-if(savedVoices.length){
-if(voiceGender==='female'){
-const v=savedVoices.find(x=>x.name.match(/Tingting|Female|Xiaoxiao|woman/i));
-if(v)u.voice=v;u.pitch=1.15;
-}else{
-const v=savedVoices.find(x=>x.name.match(/Yunxi|Male|Yunjian|man/i));
-if(v)u.voice=v;u.pitch=0.9;
-}
-}
 u.lang='zh-CN';u.rate=1.02;u.volume=1;
 u.onstart=()=>{spk=true;S('镜中人回复...','reply');};
 u.onend=()=>{spk=false;S('按住 🎤 说话');};
-u.onerror=e=>{spk=false;console.log('TTS error',e);S('语音播放失败');};
-speechSynthesis.speak(u);
+u.onerror=e=>{spk=false;console.log('TTS error',e.error);S('按住 🎤 说话');};
+setTimeout(()=>speechSynthesis.speak(u),50);
 }
 
 loadVoices();
