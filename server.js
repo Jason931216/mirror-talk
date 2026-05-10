@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import fs from 'fs';
-import FormData from 'form-data';
+import { readFileSync, unlinkSync } from 'fs';
+import { Blob } from 'node:buffer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,16 +18,17 @@ const DK = process.env.DEEPSEEK_KEY || '';
 const GK = process.env.GROQ_KEY || '';
 if (!DK || !GK) { console.error('Missing DEEPSEEK_KEY or GROQ_KEY env vars'); process.exit(1); }
 
-// STT via Groq Whisper
+// STT via Groq Whisper (native FormData, Node 22)
 async function stt(audioPath) {
+  const buf = readFileSync(audioPath);
   const fd = new FormData();
   fd.append('model', 'whisper-large-v3');
-  fd.append('file', fs.createReadStream(audioPath), { filename: 'audio.webm', contentType: 'audio/webm' });
+  fd.append('file', new Blob([buf], { type: 'audio/webm' }), 'audio.webm');
   fd.append('language', 'zh');
 
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${GK}`, ...fd.getHeaders() },
+    headers: { 'Authorization': `Bearer ${GK}` },
     body: fd
   });
   if (!res.ok) { const t = await res.text(); throw new Error(`STT ${res.status}: ${t.substring(0, 100)}`); }
@@ -78,14 +79,13 @@ async function chat(text, history, lang, gender) {
   return d.choices[0].message.content;
 }
 
-// Voice endpoint: audio → Groq STT → DeepSeek
 app.post('/api/talk', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No audio' });
     const history = req.body.history ? JSON.parse(req.body.history) : [];
 
     const transcript = await stt(req.file.path);
-    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    try { unlinkSync(req.file.path); } catch (_) {}
 
     if (!transcript || transcript.length < 1) {
       return res.json({ userText: '', reply: '', error: 'no_speech' });
@@ -98,7 +98,7 @@ app.post('/api/talk', upload.single('audio'), async (req, res) => {
     res.json({ userText: transcript, lang, gender, reply });
   } catch (e) {
     console.error(e);
-    try { if (req.file) fs.unlinkSync(req.file.path); } catch (_) {}
+    try { if (req.file) unlinkSync(req.file.path); } catch (_) {}
     res.status(500).json({ error: e.message });
   }
 });
