@@ -27,9 +27,11 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 #sub-ai{position:absolute;bottom:22%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
 #sub-ai span{display:inline-block;max-width:90%;padding:10px 16px;background:rgba(10,10,30,.85);border-radius:12px;color:#fff;font-size:13px;line-height:1.5;border:1px solid rgba(100,180,255,.12);animation:up .3s}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-#controls{position:absolute;bottom:30px;left:0;right:0;display:flex;justify-content:center;z-index:20}
+#controls{position:absolute;bottom:30px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:12px;z-index:20}
 #talk{width:68px;height:68px;border-radius:50%;border:2.5px solid rgba(76,175,80,.35);background:rgba(76,175,80,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;transition:.15s;-webkit-tap-highlight-color:transparent;user-select:none}
 #talk:active,#talk.active{background:rgba(76,175,80,.35);border-color:#4cff8d;box-shadow:0 0 32px rgba(76,175,80,.25);transform:scale(.93)}
+#voice-btn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);cursor:pointer;font-size:15px;transition:.15s;line-height:36px;text-align:center}
+#voice-btn:active{background:rgba(255,255,255,.12)}
 </style>
 </head>
 <body>
@@ -38,21 +40,39 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 <video id="video" autoplay playsinline muted></video>
 <div id="start">
 <button id="start-btn" class="btn">📷</button>
-<div id="start-txt" class="txt">点击启动 · Groq+DeepSeek</div>
+<div id="start-txt" class="txt">点击启动 · 按住说话</div>
 </div>
 <div id="status">ready</div>
 <div id="profile"></div>
 <div id="sub-me"><span></span></div>
 <div id="sub-ai"><span></span></div>
 </div>
-<div id="controls"><button id="talk">🎤</button></div>
+<div id="controls">
+<button id="voice-btn" title="切换AI声音">👩</button>
+<button id="talk">🎤</button>
+</div>
 </div>
 
 <script>
 const Q=id=>document.getElementById(id),API='/api';
 let hist=[],rec=false,camStream=null,micStream=null,mr=null,chunks=[],spk=false,profile={};
+let voiceGender=localStorage.getItem('mt-voice')||'female';
+let savedVoices=[];
 
 function S(t,c){Q('status').textContent=t;Q('status').className=c||'';}
+
+function updateVoiceBtn(){
+Q('voice-btn').textContent=voiceGender==='female'?'👩':'👨';
+Q('voice-btn').style.borderColor=voiceGender==='female'?'rgba(255,105,180,.3)':'rgba(100,180,255,.3)';
+}
+updateVoiceBtn();
+
+Q('voice-btn').addEventListener('click',()=>{
+voiceGender=voiceGender==='female'?'male':'female';
+localStorage.setItem('mt-voice',voiceGender);
+updateVoiceBtn();
+if(spk){speechSynthesis.cancel();spk=false;}
+});
 
 async function startCam(){
 Q('start-txt').textContent='starting...';
@@ -60,12 +80,12 @@ try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user
 catch(e){console.log('no camera');}
 try{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}
 catch(e){Q('start-txt').textContent='需要麦克风权限';Q('start-txt').style.color='#ef5350';return;}
+savedVoices=speechSynthesis.getVoices();
 Q('start').classList.add('hidden');S('按住 🎤 说话');
 }
 Q('start-btn').addEventListener('click',startCam);
 Q('start-btn').addEventListener('touchend',e=>{e.preventDefault();startCam();});
 
-// Record → send to Groq STT + DeepSeek
 function go(){
 if(spk){speechSynthesis.cancel();spk=false;}
 if(!micStream){Q('start-txt').textContent='先点📷!';return;}
@@ -83,9 +103,9 @@ async function end(){if(!rec)return;rec=false;Q('talk').classList.remove('active
 
 async function process(){
 await new Promise(r=>setTimeout(r,300));
-if(!chunks.length){S('太短，再试','idle');return;}
+if(!chunks.length){S('太短，再试');return;}
 const blob=new Blob(chunks,{type:'audio/webm'});
-if(blob.size<600){S('太短，再说一次','idle');return;}
+if(blob.size<600){S('太短，再说一次');return;}
 
 S('Groq 听写 + DeepSeek 思考...','thinking');
 try{
@@ -95,7 +115,7 @@ const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,body:fd});
 clearTimeout(t);
 if(!r.ok){const e=await r.text();throw new Error(r.status+': '+e.substring(0,60));}
 const d=await r.json();
-if(d.error==='no_speech'){S('没听清','idle');return;}
+if(d.error==='no_speech'){S('没听清');return;}
 
 Q('sub-me').querySelector('span').textContent='👤 '+d.userText;Q('sub-me').style.display='block';
 profile={lang:d.lang,gender:d.gender};
@@ -103,16 +123,21 @@ Q('profile').textContent=(d.lang||'')+'·'+(d.gender||'');Q('profile').style.dis
 hist.push({role:'user',content:d.userText},{role:'assistant',content:d.reply});
 if(hist.length>20)hist=hist.slice(-20);
 Q('sub-ai').querySelector('span').textContent=d.reply;Q('sub-ai').style.display='block';
-speak(d.reply,d.lang);
+speak(d.reply);
 }catch(e){S('error: '+e.message,'err');setTimeout(()=>S('按住 🎤 说话'),3000);}
 }
 
-function speak(text,lang){
+function speak(text){
 speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);
-const vs=speechSynthesis.getVoices();
+const vs=savedVoices.length?savedVoices:speechSynthesis.getVoices();
 if(vs.length){
-if(profile.gender==='male'){const v=vs.find(x=>x.name.match(/Tingting|Female|woman/i));if(v)u.voice=v;u.pitch=1.1;}
-else if(profile.gender==='female'){const v=vs.find(x=>x.name.match(/Male|Yunxi/i));if(v)u.voice=v;u.pitch=0.9;}
+if(voiceGender==='female'){
+const v=vs.find(x=>x.name.match(/Tingting|Female|Xiaoxiao|woman/i));
+if(v)u.voice=v;u.pitch=1.15;
+}else{
+const v=vs.find(x=>x.name.match(/Yunxi|Male|Yunjian|man/i));
+if(v)u.voice=v;u.pitch=0.9;
+}
 }
 u.lang='zh-CN';u.rate=1.02;
 u.onstart=()=>{spk=true;S('镜中人回复...','reply');};
@@ -125,6 +150,7 @@ tb.addEventListener('pointerdown',go);tb.addEventListener('pointerup',end);tb.ad
 tb.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
 tb.addEventListener('touchend',e=>{e.preventDefault();end();},{passive:false});
 speechSynthesis.getVoices();
+speechSynthesis.onvoiceschanged=()=>{savedVoices=speechSynthesis.getVoices();};
 </script>
 </body>
 </html>
