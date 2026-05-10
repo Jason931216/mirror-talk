@@ -117,7 +117,7 @@ if(d.error==='no_speech'){S('没听清');return;}
 
 Q('sub-me').querySelector('span').textContent='👤 '+d.userText;Q('sub-me').style.display='block';
 profile={lang:d.lang,gender:d.gender};
-Q('profile').textContent=(d.lang||'')+'·'+(d.gender||'');Q('profile').style.display='block';
+Q('profile').textContent=(d.lang==='cantonese'?'粤语':'普通话')+' · 男';Q('profile').style.display='block';
 hist.push({role:'user',content:d.userText},{role:'assistant',content:d.reply});
 if(hist.length>20)hist=hist.slice(-20);
 Q('sub-ai').querySelector('span').textContent=d.reply;Q('sub-ai').style.display='block';

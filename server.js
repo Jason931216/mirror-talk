@@ -60,11 +60,11 @@ async function detectGender(text) {
   return 'unknown';
 }
 
-async function chat(text, history, lang, gender) {
+async function chat(text, history, lang) {
   const isCant = lang === 'cantonese';
   const sys = isCant
-    ? `你是照了么的AI镜中人。用户正对镜同你倾偈。用繁体粤语口语回复。${gender==='male'?'用户系男仔，用女声口吻。':gender==='female'?'用户系女仔，用男声口吻。':''}最多3-4句，好似面对面倾偈。`
-    : `你是"照了么"AI镜中人，用户对着镜子和你聊天。用简体中文普通话回复。${gender==='male'?'用户是男性，用女性口吻。':gender==='female'?'用户是女性，用男性口吻。':''}最多3-4句，像面对面聊天。`;
+    ? '你是照了么的AI镜中人。用户正对镜同你倾偈。用繁体粤语口语回复。用户系男仔，用女声口吻。最多3-4句，好似面对面倾偈。'
+    : '你是"照了么"AI镜中人，用户对着镜子和你聊天。用简体中文普通话回复。用户是男性，用女性口吻。最多3-4句，像面对面聊天。';
 
   const msgs = [{ role: 'system', content: sys }, ...history.slice(-4), { role: 'user', content: text }];
 
@@ -103,12 +103,11 @@ app.post('/api/talk', upload.single('audio'), async (req, res) => {
     }
 
     const lang = detectLang(transcript);
-    const gender = await detectGender(transcript);
-    const reply = await chat(transcript, history, lang, gender);
+    const reply = await chat(transcript, history, lang);
     const voiceGender = req.body.voice || 'female';
     const audio = await tts(reply, voiceGender);
 
-    res.json({ userText: transcript, lang, gender, reply, audio });
+    res.json({ userText: transcript, lang, gender: 'male', reply, audio });
   } catch (e) {
     console.error(e);
     try { if (req.file) unlinkSync(req.file.path); } catch (_) {}
