@@ -16,25 +16,20 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 #start .btn{width:80px;height:80px;border-radius:50%;border:3px solid rgba(76,175,80,.5);background:rgba(76,175,80,.1);color:#4cff8d;font-size:32px;cursor:pointer}
 #start .btn:active{transform:scale(.93)}
 #start .txt{color:rgba(255,255,255,.4);font-size:14px;text-align:center;padding:0 16px}
-#status{position:absolute;top:12px;left:50%;transform:translateX(-50%);padding:5px 12px;border-radius:10px;font-size:12px;font-weight:600;z-index:10;pointer-events:none;background:rgba(255,255,255,.06);color:rgba(255,255,255,.5)}
+#status{position:absolute;top:12px;left:50%;transform:translateX(-50%);padding:5px 12px;border-radius:10px;font-size:11px;font-weight:600;z-index:10;pointer-events:none;background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);transition:.2s}
 #status.listening{background:rgba(0,200,83,.2);color:#4cff8d}
 #status.thinking{background:rgba(255,152,0,.2);color:#ffb74d}
 #status.reply{background:rgba(33,150,243,.2);color:#64b5f6}
 #status.err{background:rgba(244,67,54,.2);color:#ef5350}
 #profile{position:absolute;top:12px;right:12px;padding:3px 8px;border-radius:6px;font-size:10px;z-index:10;pointer-events:none;display:none;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4)}
-#sub-me{position:absolute;bottom:36%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
+#sub-me{position:absolute;bottom:34%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
 #sub-me span{display:inline-block;padding:7px 14px;background:rgba(0,0,0,.7);border-radius:10px;color:#4cff8d;font-size:13px;border:1px solid rgba(76,175,80,.2)}
-#sub-ai{position:absolute;bottom:24%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
+#sub-ai{position:absolute;bottom:22%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
 #sub-ai span{display:inline-block;max-width:90%;padding:10px 16px;background:rgba(10,10,30,.85);border-radius:12px;color:#fff;font-size:13px;line-height:1.5;border:1px solid rgba(100,180,255,.12);animation:up .3s}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-#controls{position:absolute;bottom:30px;left:0;right:0;display:flex;justify-content:center;gap:20px;z-index:20}
-#talk{width:68px;height:68px;border-radius:50%;border:2.5px solid rgba(76,175,80,.35);background:rgba(76,175,80,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;transition:.15s}
+#controls{position:absolute;bottom:30px;left:0;right:0;display:flex;justify-content:center;z-index:20}
+#talk{width:68px;height:68px;border-radius:50%;border:2.5px solid rgba(76,175,80,.35);background:rgba(76,175,80,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;transition:.15s;-webkit-tap-highlight-color:transparent;user-select:none}
 #talk:active,#talk.active{background:rgba(76,175,80,.35);border-color:#4cff8d;box-shadow:0 0 32px rgba(76,175,80,.25);transform:scale(.93)}
-#txt-inp{position:absolute;bottom:30px;left:16px;right:80px;display:none;z-index:20}
-#txt-inp.show{display:block}
-#txt-inp input{width:100%;padding:10px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.8);color:#fff;font-size:14px;outline:none}
-#txt-inp input:focus{border-color:#4cff8d}
-#text-toggle{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
 </style>
 </head>
 <body>
@@ -43,102 +38,65 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 <video id="video" autoplay playsinline muted></video>
 <div id="start">
 <button id="start-btn" class="btn">📷</button>
-<div id="start-txt" class="txt">点击启动镜面</div>
+<div id="start-txt" class="txt">点击启动 · Groq+DeepSeek</div>
 </div>
 <div id="status">ready</div>
 <div id="profile"></div>
 <div id="sub-me"><span></span></div>
 <div id="sub-ai"><span></span></div>
 </div>
-<div id="controls">
-<button id="text-toggle">⌨️</button>
-<button id="talk">🎤</button>
-</div>
-<div id="txt-inp">
-<input id="txt" type="text" placeholder="打字发给镜中人…" enterkeyhint="send"/>
-</div>
+<div id="controls"><button id="talk">🎤</button></div>
 </div>
 
 <script>
-const Q=id=>document.getElementById(id);
-const API='/api';
-let hist=[],rec=false,camStream=null,spk=false,profile={},sr=null,finalText='';
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const Q=id=>document.getElementById(id),API='/api';
+let hist=[],rec=false,camStream=null,micStream=null,mr=null,chunks=[],spk=false,profile={};
 
 function S(t,c){Q('status').textContent=t;Q('status').className=c||'';}
 
-// Camera
 async function startCam(){
 Q('start-txt').textContent='starting...';
 try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});Q('video').srcObject=camStream;Q('video').classList.add('on');}
-catch(e){Q('start-txt').textContent='no camera — voice chat works anyway';}
-if(!SR){Q('start-txt').textContent='⚠️ 请用 Chrome 浏览器打开';Q('start-txt').style.color='#ef5350';return;}
+catch(e){console.log('no camera');}
+try{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}
+catch(e){Q('start-txt').textContent='需要麦克风权限';Q('start-txt').style.color='#ef5350';return;}
 Q('start').classList.add('hidden');S('按住 🎤 说话');
 }
 Q('start-btn').addEventListener('click',startCam);
 Q('start-btn').addEventListener('touchend',e=>{e.preventDefault();startCam();});
 
-// Toggle text mode
-let textMode=false;
-Q('text-toggle').addEventListener('click',()=>{
-textMode=!textMode;
-Q('txt-inp').classList.toggle('show',textMode);
-Q('talk').style.display=textMode?'none':'flex';
-});
-Q('txt').addEventListener('keydown',e=>{
-if(e.key==='Enter'){const t=Q('txt').value.trim();if(t){Q('txt').value='';sendText(t);}}
-});
-
-async function sendText(t){
-Q('sub-me').querySelector('span').textContent=t;Q('sub-me').style.display='block';
-S('思考中...','thinking');
-await callDS(t);
-}
-
-// Speech recognition
-async function go(){
-if(spk){speechSynthesis.cancel();spk=false;}if(!SR)return;
-rec=true;finalText='';Q('talk').classList.add('active');
+// Record → send to Groq STT + DeepSeek
+function go(){
+if(spk){speechSynthesis.cancel();spk=false;}
+if(!micStream){Q('start-txt').textContent='先点📷!';return;}
+rec=true;chunks=[];Q('talk').classList.add('active');
 Q('sub-me').style.display='none';Q('sub-ai').style.display='none';
-S('🎤 听你说话...','listening');
-try{
-sr=new SR();sr.lang='zh-CN';sr.continuous=false;sr.interimResults=true;
-sr.onresult=e=>{
-let f='',p='';
-for(let i=0;i<e.results.length;i++){
-const t=e.results[i][0].transcript;
-if(e.results[i].isFinal)f+=t;else p+=t;
-}
-if(f)finalText=f;
-Q('sub-me').querySelector('span').textContent=p||f||'...';
-Q('sub-me').style.display='block';
-};
-sr.onerror=e=>{
-if(e.error==='no-speech'){S('没听到声音');finalText='';}
-else if(e.error==='aborted'){}
-else{S('识别失败: '+e.error,'err');}
-};
-sr.onend=()=>{if(rec){if(finalText)S('松开发送');else S('没听清，再试');}};
-sr.start();
-}catch(e){S('语音不可用','err');}
+S('🎤 录音中...','listening');
+try{mr=new MediaRecorder(micStream,{mimeType:MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm'});}
+catch(e){mr=new MediaRecorder(micStream);}
+mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+mr.onstop=process;
+mr.start(100);
 }
 
-async function end(){
-if(!rec)return;rec=false;Q('talk').classList.remove('active');
-if(sr){try{sr.stop();}catch{}sr=null;}
-await new Promise(r=>setTimeout(r,400));
-if(!finalText||finalText.trim().length<2){S('没听清，再试一次');setTimeout(()=>S('按住 🎤 说话'),2000);return;}
-await callDS(finalText.trim());
-}
+async function end(){if(!rec)return;rec=false;Q('talk').classList.remove('active');if(mr&&mr.state!=='inactive')mr.stop();}
 
-async function callDS(text){
-S('DeepSeek 思考...','thinking');
+async function process(){
+await new Promise(r=>setTimeout(r,300));
+if(!chunks.length){S('太短，再试','idle');return;}
+const blob=new Blob(chunks,{type:'audio/webm'});
+if(blob.size<600){S('太短，再说一次','idle');return;}
+
+S('Groq 听写 + DeepSeek 思考...','thinking');
 try{
-const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);
-const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({text,history:hist})});
+const fd=new FormData();fd.append('audio',blob,'speech.webm');fd.append('history',JSON.stringify(hist));
+const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);
+const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,body:fd});
 clearTimeout(t);
 if(!r.ok){const e=await r.text();throw new Error(r.status+': '+e.substring(0,60));}
 const d=await r.json();
+if(d.error==='no_speech'){S('没听清','idle');return;}
+
 Q('sub-me').querySelector('span').textContent='👤 '+d.userText;Q('sub-me').style.display='block';
 profile={lang:d.lang,gender:d.gender};
 Q('profile').textContent=(d.lang||'')+'·'+(d.gender||'');Q('profile').style.display='block';
@@ -163,9 +121,7 @@ speechSynthesis.speak(u);
 }
 
 const tb=Q('talk');
-tb.addEventListener('pointerdown',go);
-tb.addEventListener('pointerup',end);
-tb.addEventListener('pointerleave',end);
+tb.addEventListener('pointerdown',go);tb.addEventListener('pointerup',end);tb.addEventListener('pointerleave',end);
 tb.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
 tb.addEventListener('touchend',e=>{e.preventDefault();end();},{passive:false});
 speechSynthesis.getVoices();
