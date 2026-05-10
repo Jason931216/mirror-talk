@@ -8,20 +8,16 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,system-ui,sans-serif}
 #app{width:100%;height:100%;display:flex;flex-direction:column;position:relative;max-width:500px;margin:0 auto}
-
-/* Camera mirror */
 #view{flex:1;position:relative;overflow:hidden;background:#111}
 #video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
 #video.on{display:block}
 
-/* Start screen */
 #start{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;z-index:5}
 #start.hidden{display:none}
-#start .btn{width:90px;height:90px;border-radius:50%;border:3px solid rgba(76,175,80,.5);background:rgba(76,175,80,.1);color:#4cff8d;font-size:36px;cursor:pointer}
+#start .btn{width:90px;height:90px;border-radius:50%;border:3px solid rgba(76,175,80,.5);background:rgba(76,175,80,.1);color:#4cff8d;font-size:36px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #start .btn:active{transform:scale(.93)}
-#start .txt{color:rgba(255,255,255,.4);font-size:14px}
+#start .txt{color:rgba(255,255,255,.45);font-size:14px;text-align:center;padding:0 20px}
 
-/* Status */
 #status{position:absolute;top:max(12px,env(safe-area-inset-top,12px));left:50%;transform:translateX(-50%);padding:6px 14px;border-radius:12px;font-size:12px;font-weight:600;z-index:10;pointer-events:none;transition:.25s}
 #status.idle{background:rgba(255,255,255,.06);color:rgba(255,255,255,.5)}
 #status.listening{background:rgba(0,200,83,.25);color:#4cff8d;animation:pulse 1s infinite}
@@ -30,29 +26,35 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 #status.error{background:rgba(244,67,54,.2);color:#ef5350}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
-/* Profile badge */
 #profile{position:absolute;top:max(12px,env(safe-area-inset-top,12px));right:12px;padding:3px 10px;border-radius:8px;font-size:10px;font-weight:600;z-index:10;pointer-events:none;display:none;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4)}
 
-/* Subtitles */
 #sub-me{position:absolute;bottom:34%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
-#sub-me span{display:inline-block;padding:8px 16px;background:rgba(0,0,0,.7);border-radius:12px;color:#4cff8d;font-size:14px;border:1px solid rgba(76,175,80,.2);backdrop-filter:blur(8px)}
+#sub-me span{display:inline-block;padding:8px 16px;background:rgba(0,0,0,.7);border-radius:12px;color:#4cff8d;font-size:14px;border:1px solid rgba(76,175,80,.2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 
 #sub-ai{position:absolute;bottom:22%;left:16px;right:16px;text-align:center;z-index:10;pointer-events:none;display:none}
-#sub-ai span{display:inline-block;max-width:90%;padding:10px 16px;background:rgba(10,10,30,.85);border-radius:14px;color:#fff;font-size:14px;line-height:1.5;border:1px solid rgba(100,180,255,.12);backdrop-filter:blur(10px);animation:up .3s ease}
+#sub-ai span{display:inline-block;max-width:90%;padding:10px 16px;background:rgba(10,10,30,.85);border-radius:14px;color:#fff;font-size:14px;line-height:1.5;border:1px solid rgba(100,180,255,.12);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:up .3s ease}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-/* History */
-#history{position:absolute;top:48px;left:8px;right:8px;bottom:40%;overflow-y:auto;z-index:5;pointer-events:none;display:none;padding:8px;flex-direction:column;gap:6px}
+#history{position:absolute;top:50px;left:8px;right:8px;bottom:40%;overflow-y:auto;z-index:5;pointer-events:none;display:none;padding:8px;flex-direction:column;gap:6px}
 #history.show{display:flex}
 #history .line{font-size:12px;padding:4px 10px;border-radius:8px;max-width:80%}
 #history .line.me{align-self:flex-end;background:rgba(76,175,80,.08);color:rgba(76,175,80,.7)}
 #history .line.ai{align-self:flex-start;background:rgba(255,255,255,.04);color:rgba(255,255,255,.5)}
 
-/* Controls */
 #controls{position:absolute;bottom:max(20px,env(safe-area-inset-bottom,20px));left:0;right:0;display:flex;justify-content:center;align-items:center;gap:28px;z-index:20}
-#talk{width:72px;height:72px;border-radius:50%;border:2.5px solid rgba(76,175,80,.4);background:rgba(76,175,80,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:all .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+#talk{width:72px;height:72px;border-radius:50%;border:2.5px solid rgba(76,175,80,.4);background:rgba(76,175,80,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:all .15s;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 #talk:active,#talk.active{background:rgba(76,175,80,.4);border-color:#4cff8d;box-shadow:0 0 40px rgba(76,175,80,.3);transform:scale(.93)}
-#gear{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;-webkit-tap-highlight-color:transparent}
+
+/* Wave animation for recording */
+#wave{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);display:none;gap:3px;align-items:flex-end;height:30px}
+#wave.on{display:flex}
+#wave .bar{width:3px;background:#4cff8d;border-radius:2px;animation:wave 0.6s ease-in-out infinite}
+#wave .bar:nth-child(1){height:10px;animation-delay:0s}
+#wave .bar:nth-child(2){height:20px;animation-delay:0.1s}
+#wave .bar:nth-child(3){height:15px;animation-delay:0.2s}
+#wave .bar:nth-child(4){height:25px;animation-delay:0.3s}
+#wave .bar:nth-child(5){height:12px;animation-delay:0.4s}
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.5)}}
 </style>
 </head>
 <body>
@@ -62,7 +64,7 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 
 <div id="start">
 <button id="start-btn" class="btn">📷</button>
-<div id="start-txt" class="txt">tap to activate mirror</div>
+<div id="start-txt" class="txt">点一下启动镜面</div>
 </div>
 
 <div id="status" class="idle">hold to speak</div>
@@ -73,72 +75,106 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 </div>
 
 <div id="controls">
-<button id="gear">⚙️</button>
 <button id="talk">🎙️</button>
-<div style="width:40px"></div>
+</div>
+
+<div id="wave">
+<div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
 </div>
 </div>
 
 <script>
 const Q=id=>document.getElementById(id);
-const API = window.location.origin + '/api';
-let hist=[],rec=false,stream=null,mr=null,chunks=[],spk=false,profile={lang:'',gender:''};
-
-// Camera
-async function startCam(){
-try{
-stream=await navigator.mediaDevices.getUserMedia({
-video:{facingMode:'user'},audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
-});
-const v=Q('video');v.srcObject=stream;v.classList.add('on');
-Q('start').classList.add('hidden');
-S('hold to speak','idle');
-}catch(e){Q('start-txt').textContent='please enable camera & mic in Settings>Safari';Q('start-txt').style.color='#ef5350';}
-}
-Q('start-btn').addEventListener('click',startCam);
-Q('start-btn').addEventListener('touchend',e=>{e.preventDefault();startCam();});
+const API='/api';
+let hist=[],rec=false,camStream=null,micStream=null,mr=null,chunks=[],spk=false,profile={lang:'',gender:''};
 
 function S(t,c){Q('status').textContent=t;Q('status').className=c;}
 
-// Record
+// Camera (video only)
+async function startCam(){
+Q('start-txt').textContent='starting camera...';
+try{
+camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+Q('video').srcObject=camStream;Q('video').classList.add('on');
+}catch(e){
+console.log('camera failed',e);
+Q('start-txt').textContent='camera skipped — voice chat still works';
+}
+
+// Mic (audio only — separate stream for reliable recording)
+Q('start-txt').textContent='starting microphone...';
+try{
+micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+}catch(e){
+console.log('mic failed',e);
+Q('start-txt').textContent='mic access denied — cannot record';
+Q('start-txt').style.color='#ef5350';
+return;
+}
+
+Q('start').classList.add('hidden');
+S('hold 🎙️ to speak','idle');
+}
+
+Q('start-btn').addEventListener('click',startCam);
+Q('start-btn').addEventListener('touchend',e=>{e.preventDefault();startCam();});
+
+// Talk — hold to record
 function go(){
 if(spk){speechSynthesis.cancel();spk=false;}
-if(!stream){Q('start-txt').textContent='tap camera button first';return;}
+if(!micStream){Q('start-txt').textContent='tap 📷 button first!';return;}
 rec=true;chunks=[];
-Q('talk').classList.add('active');S('listening...','listening');
+Q('talk').classList.add('active');
+Q('wave').classList.add('on');
 Q('sub-ai').style.display='none';Q('sub-me').style.display='none';
-try{mr=new MediaRecorder(stream,{mimeType:'audio/webm;codecs=opus'});}
-catch(e){mr=new MediaRecorder(stream);}
+S('listening...','listening');
+
+// iOS: try mp4 first, fall back to webm
+let mime='';
+try{MediaRecorder.isTypeSupported('audio/mp4');mime='audio/mp4';}catch(e){}
+if(!mime)try{MediaRecorder.isTypeSupported('audio/webm;codecs=opus');mime='audio/webm;codecs=opus';}catch(e){}
+if(!mime)try{MediaRecorder.isTypeSupported('audio/webm');mime='audio/webm';}catch(e){}
+
+try{
+mr=new MediaRecorder(micStream, mime ? {mimeType:mime} : {});
+}catch(e){
+mr=new MediaRecorder(micStream);
+}
 mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+mr.onstop=process;  // Important: use onstop event
 mr.start(100);
 }
 
 async function end(){
 if(!rec||!mr||mr.state==='inactive')return;
-rec=false;Q('talk').classList.remove('active');
-mr.stop();await new Promise(r=>setTimeout(r,500));
-if(!chunks.length){S('hold to speak','idle');return;}
-const blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});
-if(blob.size<600){S('too short, try again','idle');return;}
+rec=false;Q('talk').classList.remove('active');Q('wave').classList.remove('on');
+if(mr.state!=='inactive')mr.stop();
+}
+
+async function process(){
+await new Promise(r=>setTimeout(r,300));
+if(!chunks.length){S('too short','idle');return;}
+const blob=new Blob(chunks,{type:mr.mimeType||'audio/mp4'});
+if(blob.size<300){S('too short','idle');return;}
 
 S('processing...','processing');
 
 try{
 const fd=new FormData();
-fd.append('audio',blob,'recording.webm');
+fd.append('audio',blob,'recording.' + (mr.mimeType?.includes('webm')?'webm':'mp4'));
 fd.append('history',JSON.stringify(hist));
 
-const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);
+const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);
 const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,body:fd});
 clearTimeout(t);
 
-if(!r.ok)throw new Error('server '+r.status);
+if(!r.ok){const e=await r.text();throw new Error('server '+r.status+': '+e.substring(0,80));}
 const d=await r.json();
 
-if(d.error==='no_speech'){S('didn\'t catch that, try again','idle');return;}
+if(d.error==='no_speech'){S('didn\'t catch that — try again','idle');return;}
 
-// Show user subtitle
-Q('sub-me').querySelector('span').textContent=d.userText||'(silence)';
+// Show what you said
+Q('sub-me').querySelector('span').textContent=d.userText||'...';
 Q('sub-me').style.display='block';
 
 // Show profile
@@ -148,23 +184,23 @@ Q('profile').style.display='block';
 
 // Update history
 hist.push({role:'user',content:d.userText},{role:'assistant',content:d.reply});
-if(hist.length>20)hist=hist.slice(-20);
+if(hist.length>30)hist=hist.slice(-30);
 updateHistory();
 
-// Show AI subtitle
+// Show AI reply
 Q('sub-ai').querySelector('span').textContent=d.reply;
 Q('sub-ai').style.display='block';
 
 speak(d.reply,d.lang);
 }catch(e){
 console.error(e);S('error: '+e.message,'error');
-setTimeout(()=>S('hold to speak','idle'),3000);
+setTimeout(()=>S('hold 🎙️ to speak','idle'),4000);
 }
 }
 
 function updateHistory(){
 const h=Q('history');
-h.innerHTML=hist.slice(-10).map(m=>`<div class="line ${m.role}">${m.content}</div>`).join('');
+h.innerHTML=hist.slice(-12).map(m=>`<div class="line ${m.role}">${m.content}</div>`).join('');
 if(hist.length>0)h.classList.add('show');
 h.scrollTop=h.scrollHeight;
 }
@@ -175,27 +211,28 @@ const u=new SpeechSynthesisUtterance(text);
 const vs=speechSynthesis.getVoices();
 if(vs.length){
 if(profile.gender==='male'){
-u.voice=vs.find(v=>v.name.match(/Tingting|Female|woman/i))||vs[0];
-u.pitch=1.15;
+const v=vs.find(x=>x.name.match(/Tingting|Female|woman/i))||vs[0];
+if(v)u.voice=v;u.pitch=1.15;
 }else if(profile.gender==='female'){
-u.voice=vs.find(v=>v.name.match(/Male|Yunxi|man/i))||vs[0];
-u.pitch=0.9;
+const v=vs.find(x=>x.name.match(/Male|Yunxi|man/i))||vs[0];
+if(v)u.voice=v;u.pitch=0.9;
 }
 }
-if(lang==='cantonese')u.lang='zh-HK';else u.lang='zh-CN';
-u.rate=1.02;
+u.lang=(lang==='cantonese')?'zh-HK':'zh-CN';u.rate=1.02;
 u.onstart=()=>{spk=true;S('replying...','replying');};
-u.onend=u.onerror=()=>{spk=false;S('hold to speak','idle');};
+u.onend=u.onerror=()=>{spk=false;S('hold 🎙️ to speak','idle');};
 speechSynthesis.speak(u);
 }
 
-// Talk button
-const talkBtn=Q('talk');
-talkBtn.addEventListener('pointerdown',go);
-talkBtn.addEventListener('pointerup',end);
-talkBtn.addEventListener('pointerleave',end);
-talkBtn.addEventListener('touchstart',e=>{e.preventDefault();go();});
-talkBtn.addEventListener('touchend',e=>{e.preventDefault();end();});
+// Talk button — touch + mouse
+const tBtn=Q('talk');
+tBtn.addEventListener('pointerdown',go);
+tBtn.addEventListener('pointerup',end);
+tBtn.addEventListener('pointerleave',end);
+tBtn.addEventListener('pointercancel',end);
+tBtn.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
+tBtn.addEventListener('touchend',e=>{e.preventDefault();end();},{passive:false});
+tBtn.addEventListener('touchcancel',e=>{e.preventDefault();end();},{passive:false});
 
 // Init
 speechSynthesis.getVoices();
