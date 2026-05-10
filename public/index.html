@@ -127,30 +127,36 @@ speak(d.reply);
 }catch(e){S('error: '+e.message,'err');setTimeout(()=>S('按住 🎤 说话'),3000);}
 }
 
+function loadVoices(){
+const vs=speechSynthesis.getVoices();
+if(vs.length)savedVoices=vs;
+}
 function speak(text){
-speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);
-const vs=savedVoices.length?savedVoices:speechSynthesis.getVoices();
-if(vs.length){
+speechSynthesis.cancel();
+if(!savedVoices.length)loadVoices();
+const u=new SpeechSynthesisUtterance(text);
+if(savedVoices.length){
 if(voiceGender==='female'){
-const v=vs.find(x=>x.name.match(/Tingting|Female|Xiaoxiao|woman/i));
+const v=savedVoices.find(x=>x.name.match(/Tingting|Female|Xiaoxiao|woman/i));
 if(v)u.voice=v;u.pitch=1.15;
 }else{
-const v=vs.find(x=>x.name.match(/Yunxi|Male|Yunjian|man/i));
+const v=savedVoices.find(x=>x.name.match(/Yunxi|Male|Yunjian|man/i));
 if(v)u.voice=v;u.pitch=0.9;
 }
 }
-u.lang='zh-CN';u.rate=1.02;
+u.lang='zh-CN';u.rate=1.02;u.volume=1;
 u.onstart=()=>{spk=true;S('镜中人回复...','reply');};
-u.onend=u.onerror=()=>{spk=false;S('按住 🎤 说话');};
+u.onend=()=>{spk=false;S('按住 🎤 说话');};
+u.onerror=e=>{spk=false;console.log('TTS error',e);S('语音播放失败');};
 speechSynthesis.speak(u);
 }
 
+loadVoices();
+speechSynthesis.onvoiceschanged=loadVoices;
 const tb=Q('talk');
 tb.addEventListener('pointerdown',go);tb.addEventListener('pointerup',end);tb.addEventListener('pointerleave',end);
 tb.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
 tb.addEventListener('touchend',e=>{e.preventDefault();end();},{passive:false});
-speechSynthesis.getVoices();
-speechSynthesis.onvoiceschanged=()=>{savedVoices=speechSynthesis.getVoices();};
 </script>
 </body>
 </html>
