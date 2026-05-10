@@ -107,8 +107,8 @@ if(blob.size<600){S('太短，再说一次');return;}
 
 S('Groq 听写 + DeepSeek 思考...','thinking');
 try{
-const fd=new FormData();fd.append('audio',blob,'speech.webm');fd.append('history',JSON.stringify(hist));fd.append('voice',voiceGender);
-const c=new AbortController();const t=setTimeout(()=>c.abort(),25000);
+const fd=new FormData();fd.append('audio',blob,'speech.webm');fd.append('history',JSON.stringify(hist));
+const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);
 const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,body:fd});
 clearTimeout(t);
 if(!r.ok){const e=await r.text();throw new Error(r.status+': '+e.substring(0,60));}
@@ -121,22 +121,20 @@ Q('profile').textContent=(d.lang==='cantonese'?'粤语':'普通话')+' · 男';Q
 hist.push({role:'user',content:d.userText},{role:'assistant',content:d.reply});
 if(hist.length>20)hist=hist.slice(-20);
 Q('sub-ai').querySelector('span').textContent=d.reply;Q('sub-ai').style.display='block';
-playAudio(d.audio);
+speak(d.reply);
 }catch(e){S('error: '+e.message,'err');setTimeout(()=>S('按住 🎤 说话'),3000);}
 }
 
-let audioEl=null;
-function playAudio(b64){
-if(!b64){console.log('no tts audio');return;}
-if(audioEl){audioEl.pause();audioEl=null;}
-const a=new Audio('data:audio/mpeg;base64,'+b64);
-a.onplay=()=>{spk=true;S('镜中人回复...','reply');};
-a.onended=a.onerror=()=>{spk=false;S('按住 🎤 说话');};
-a.play().catch(()=>{});
-audioEl=a;
+function speak(text){
+speechSynthesis.cancel();
+const u=new SpeechSynthesisUtterance(text);
+u.lang='zh-CN';u.rate=1.3;u.volume=1;
+u.onstart=()=>{spk=true;S('镜中人回复...','reply');};
+u.onend=()=>{spk=false;S('按住 🎤 说话');};
+u.onerror=()=>{spk=false;};
+setTimeout(()=>speechSynthesis.speak(u),80);
 }
 
-function loadVoices(){}
 const tb=Q('talk');
 tb.addEventListener('pointerdown',go);tb.addEventListener('pointerup',end);tb.addEventListener('pointerleave',end);
 tb.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
