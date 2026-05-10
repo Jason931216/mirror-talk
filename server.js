@@ -79,6 +79,17 @@ async function chat(text, history, lang, gender) {
   return d.choices[0].message.content;
 }
 
+// Edge TTS (free, natural Chinese voice)
+const EDGE = 'https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+async function tts(text, voiceName) {
+  const voice = voiceName === 'male' ? 'zh-CN-YunxiNeural' : 'zh-CN-XiaoxiaoNeural';
+  const ssml = `<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" version="1.0" xml:lang="zh-CN"><voice name="${voice}"><prosody rate="1.25" pitch="${voiceName==='male'?'-5%':'+5%'}">${text}</prosody></voice></speak>`;
+  const res = await fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/xml'}, body:ssml });
+  if (!res.ok) return '';
+  const buf = Buffer.from(await res.arrayBuffer());
+  return buf.toString('base64');
+}
+
 app.post('/api/talk', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No audio' });
@@ -94,8 +105,10 @@ app.post('/api/talk', upload.single('audio'), async (req, res) => {
     const lang = detectLang(transcript);
     const gender = await detectGender(transcript);
     const reply = await chat(transcript, history, lang, gender);
+    const voiceGender = req.body.voice || 'female';
+    const audio = await tts(reply, voiceGender);
 
-    res.json({ userText: transcript, lang, gender, reply });
+    res.json({ userText: transcript, lang, gender, reply, audio });
   } catch (e) {
     console.error(e);
     try { if (req.file) unlinkSync(req.file.path); } catch (_) {}

@@ -57,7 +57,6 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 const Q=id=>document.getElementById(id),API='/api';
 let hist=[],rec=false,camStream=null,micStream=null,mr=null,chunks=[],spk=false,profile={};
 let voiceGender=localStorage.getItem('mt-voice')||'female';
-let savedVoices=[];
 
 function S(t,c){Q('status').textContent=t;Q('status').className=c||'';}
 
@@ -80,7 +79,6 @@ try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user
 catch(e){console.log('no camera');}
 try{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}
 catch(e){Q('start-txt').textContent='需要麦克风权限';Q('start-txt').style.color='#ef5350';return;}
-savedVoices=speechSynthesis.getVoices();
 Q('start').classList.add('hidden');S('按住 🎤 说话');
 }
 Q('start-btn').addEventListener('click',startCam);
@@ -109,8 +107,8 @@ if(blob.size<600){S('太短，再说一次');return;}
 
 S('Groq 听写 + DeepSeek 思考...','thinking');
 try{
-const fd=new FormData();fd.append('audio',blob,'speech.webm');fd.append('history',JSON.stringify(hist));
-const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);
+const fd=new FormData();fd.append('audio',blob,'speech.webm');fd.append('history',JSON.stringify(hist));fd.append('voice',voiceGender);
+const c=new AbortController();const t=setTimeout(()=>c.abort(),25000);
 const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,body:fd});
 clearTimeout(t);
 if(!r.ok){const e=await r.text();throw new Error(r.status+': '+e.substring(0,60));}
@@ -123,26 +121,22 @@ Q('profile').textContent=(d.lang||'')+'·'+(d.gender||'');Q('profile').style.dis
 hist.push({role:'user',content:d.userText},{role:'assistant',content:d.reply});
 if(hist.length>20)hist=hist.slice(-20);
 Q('sub-ai').querySelector('span').textContent=d.reply;Q('sub-ai').style.display='block';
-speak(d.reply);
+playAudio(d.audio);
 }catch(e){S('error: '+e.message,'err');setTimeout(()=>S('按住 🎤 说话'),3000);}
 }
 
-function loadVoices(){
-const vs=speechSynthesis.getVoices();
-if(vs.length)savedVoices=vs;
-}
-function speak(text){
-speechSynthesis.cancel();
-const u=new SpeechSynthesisUtterance(text);
-u.lang='zh-CN';u.rate=1.02;u.volume=1;
-u.onstart=()=>{spk=true;S('镜中人回复...','reply');};
-u.onend=()=>{spk=false;S('按住 🎤 说话');};
-u.onerror=e=>{spk=false;console.log('TTS error',e.error);S('按住 🎤 说话');};
-setTimeout(()=>speechSynthesis.speak(u),50);
+let audioEl=null;
+function playAudio(b64){
+if(!b64){console.log('no tts audio');return;}
+if(audioEl){audioEl.pause();audioEl=null;}
+const a=new Audio('data:audio/mpeg;base64,'+b64);
+a.onplay=()=>{spk=true;S('镜中人回复...','reply');};
+a.onended=a.onerror=()=>{spk=false;S('按住 🎤 说话');};
+a.play().catch(()=>{});
+audioEl=a;
 }
 
-loadVoices();
-speechSynthesis.onvoiceschanged=loadVoices;
+function loadVoices(){}
 const tb=Q('talk');
 tb.addEventListener('pointerdown',go);tb.addEventListener('pointerup',end);tb.addEventListener('pointerleave',end);
 tb.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
