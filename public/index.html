@@ -52,9 +52,10 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,
 
 <script>
 const Q=id=>document.getElementById(id),API='/api';
-let hist=[],rec=false,camStream=null,micStream=null,mr=null,chunks=[],spk=false,profile={lang:'',gender:''},srObj=null,srText='';
+let hist=[],rec=false,camStream=null,spk=false,profile={lang:'',gender:''},srObj=null,srText='';
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const USE_SR=true; // Chrome: use browser speech recognition (instant STT!)
+let srFailed=false;
+const MODE = SR ? '🎤 Chrome语音' : '请用Chrome打开';
 
 function S(t,c){Q('status').textContent=t;Q('status').className=c;}
 
@@ -64,10 +65,7 @@ try{
 camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
 Q('video').srcObject=camStream;Q('video').classList.add('on');
 }catch(e){Q('start-txt').textContent='camera skipped — voice only';}
-Q('start-txt').textContent='starting mic...';
-try{
-micStream=await navigator.mediaDevices.getUserMedia({audio:true});
-}catch(e){Q('start-txt').textContent='mic required — please allow';Q('start-txt').style.color='#ef5350';return;}
+if(!SR){Q('start-txt').textContent='请用Chrome浏览器打开！需要语音识别';Q('start-txt').style.color='#ef5350';return;}
 Q('start').classList.add('hidden');
 S('hold 🎙️ to speak','idle');
 }
@@ -75,114 +73,82 @@ S('hold 🎙️ to speak','idle');
 Q('start-btn').addEventListener('click',startCam);
 Q('start-btn').addEventListener('touchend',e=>{e.preventDefault();startCam();});
 
-// ===== DUAL RECORDING: Web Speech API (Chrome) OR MediaRecorder (iOS) =====
+// ===== BROWSER SPEECH RECOGNITION (Chrome native, no external API) =====
 
-async function go(){
+function go(){
 if(spk){speechSynthesis.cancel();spk=false;}
-if(!micStream){Q('start-txt').textContent='tap 📷 first!';return;}
-rec=true;chunks=[];srText='';
+if(!SR){S('Chrome only','error');return;}
+rec=true;srText='';srFailed=false;
 Q('talk').classList.add('active');Q('sub-me').style.display='none';Q('sub-ai').style.display='none';
-S('listening...','listening');
+S('🎤 listening...','listening');
 
-// Method A: Browser Speech Recognition (Chrome desktop) — instant, no server STT needed
-if(SR && USE_SR){
 try{
 srObj=new SR();srObj.lang='zh-CN';srObj.interimResults=true;srObj.continuous=true;
-srObj.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;srText=t;};
-srObj.onerror=e=>{console.log('SR err',e.error);};
+srObj.onresult=e=>{
+let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;
+srText=t;
+// Show live text while speaking
+if(t.trim()){
+Q('sub-me').querySelector('span').textContent=t;
+Q('sub-me').style.display='block';
+}
+};
+srObj.onerror=e=>{
+console.error('SR error',e.error);
+srFailed=true;
+S('语音识别失败，松手重试','error');
+};
+srObj.onend=()=>{console.log('SR ended, text:',srText);};
 srObj.start();
-// Also start MediaRecorder as backup
-startMR();
-return;
-}catch(e){console.log('SR failed, fallback to MR',e);}
-}
-
-// Method B: MediaRecorder (iOS / fallback)
-startMR();
-}
-
-function startMR(){
-try{
-mr=new MediaRecorder(micStream);
-}catch(e){
-try{mr=new MediaRecorder(micStream,{mimeType:'audio/webm'});}catch(e2){return;}
-}
-mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
-mr.onstop=()=>processMR();
-mr.start(100);
-}
-
-function endMRandSR(){
-if(srObj){try{srObj.stop();}catch(e){}srObj=null;}
-if(mr&&mr.state!=='inactive')mr.stop();
+}catch(e){console.error('SR start failed',e);srFailed=true;}
 }
 
 async function end(){
-if(!rec)return;
-rec=false;Q('talk').classList.remove('active');
-if(srObj){
-// SR mode: use transcribed text directly
-try{srObj.stop();}catch(e){}
-srObj=null;
-if(mr&&mr.state!=='inactive')mr.stop();
-await new Promise(r=>setTimeout(r,400));
-if(srText&&srText.trim().length>=2){
-// Skip STT — send text directly to DeepSeek
-await textChat(srText);
+if(!rec)return;rec=false;
+Q('talk').classList.remove('active');
+if(srObj){try{srObj.stop();}catch(e){}srObj=null;}
+await new Promise(r=>setTimeout(r,500));
+
+if(srFailed||!srText||srText.trim().length<2){
+S('没听清，再试一次','idle');
+setTimeout(()=>S('hold 🎙️ to speak','idle'),2000);
 return;
 }
-// Fallback to MR
-}
-endMRandSR();
-}
 
-async function processMR(){
-await new Promise(r=>setTimeout(r,300));
-if(!chunks.length){S('try again','idle');return;}
-const blob=new Blob(chunks,{type:mr?.mimeType||'audio/webm'});
-if(blob.size<300){S('too short, try again','idle');return;}
-S('processing...','processing');
-try{
-const fd=new FormData();
-fd.append('audio',blob,'recording.'+(mr?.mimeType?.includes('webm')?'webm':'mp4'));
-fd.append('history',JSON.stringify(hist));
-const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);
-const r=await fetch(API+'/talk',{method:'POST',signal:c.signal,body:fd});
-clearTimeout(t);
-if(!r.ok)throw new Error('server '+r.status);
-const d=await r.json();
-if(d.error==='no_speech'){S('didn\'t catch that','idle');return;}
-showResult(d);
-}catch(e){console.error(e);S('error','error');setTimeout(()=>S('hold 🎙️','idle'),3000);}
-}
-
-// Text chat (browser SR text → DeepSeek directly)
-async function textChat(userText){
-S('processing...','processing');
+S('DeepSeek 思考...','processing');
 try{
 const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);
-const r=await fetch(API+'/talk-text',{
+const r=await fetch(API+'/talk',{
 method:'POST',signal:c.signal,
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({text:userText,history:hist})});
+body:JSON.stringify({text:srText,history:hist})
+});
 clearTimeout(t);
-if(!r.ok)throw new Error('server '+r.status);
+if(!r.ok){const e=await r.text();throw new Error('server '+r.status+': '+e.substring(0,60));}
 const d=await r.json();
-showResult({userText,d.lang:d.lang,gender:d.gender,reply:d.reply});
-}catch(e){console.error(e);S('error','error');setTimeout(()=>S('hold 🎙️','idle'),3000);}
-}
 
-function showResult(d){
-Q('sub-me').querySelector('span').textContent=d.userText||'...';
+// Show what user said
+Q('sub-me').querySelector('span').textContent=d.userText;
 Q('sub-me').style.display='block';
+
+// Profile
 profile={lang:d.lang,gender:d.gender};
 Q('profile').textContent=(d.lang||'')+' · '+(d.gender||'');
 Q('profile').style.display='block';
+
+// History
 hist.push({role:'user',content:d.userText},{role:'assistant',content:d.reply});
 if(hist.length>30)hist=hist.slice(-30);
+
+// AI subtitle
 Q('sub-ai').querySelector('span').textContent=d.reply;
 Q('sub-ai').style.display='block';
+
 speak(d.reply,d.lang);
+}catch(e){
+console.error(e);S('error: '+e.message,'error');
+setTimeout(()=>S('hold 🎙️ to speak','idle'),3000);
+}
 }
 
 function speak(text,lang){

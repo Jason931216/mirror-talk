@@ -1,41 +1,16 @@
 import express from 'express';
 import cors from 'cors';
-import multer from 'multer';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const upload = multer({ dest: '/tmp/', limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const DK = 'sk-a12413807af2448d8b6fb2a46061d9ea';
-const GK = 'AIzaSyAmIwGc8pVab3OHHSgp3uTyBHQ6Fpj3bIE';
-
-async function stt(audioPath, mimeType) {
-  const buf = fs.readFileSync(audioPath);
-  const b64 = buf.toString('base64');
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GK}`,
-    {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [
-          { text: 'Transcribe this audio exactly. Output ONLY the transcribed text. Detect language (Cantonese, Mandarin, English).' },
-          { inline_data: { mime_type: mimeType || 'audio/webm', data: b64 } }
-        ]}],
-        generationConfig: { maxOutputTokens: 200, temperature: 0 }
-      })
-    }
-  );
-  if (!res.ok) throw new Error(`STT ${res.status}`);
-  const d = await res.json();
-  return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
 
 async function detectProfile(text) {
   const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -78,8 +53,8 @@ async function chat(text, history, profile) {
   return d.choices[0].message.content;
 }
 
-// Text-only endpoint (browser SpeechRecognition already did STT)
-app.post('/api/talk-text', async (req, res) => {
+// Main endpoint — browser SpeechRecognition does STT, server only does lang/gender detect + DeepSeek reply
+app.post('/api/talk', async (req, res) => {
   try {
     const { text, history } = req.body || {};
     if (!text || !text.trim()) return res.status(400).json({ error: 'No text' });
@@ -90,30 +65,6 @@ app.post('/api/talk-text', async (req, res) => {
     res.json({ userText: text, lang: profile.lang, gender: profile.gender, reply });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/talk', upload.single('audio'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No audio' });
-
-    const history = req.body.history ? JSON.parse(req.body.history) : [];
-
-    const transcript = await stt(req.file.path, req.file.mimetype);
-    try { fs.unlinkSync(req.file.path); } catch (_) {}
-
-    if (!transcript || transcript.length < 1) {
-      return res.json({ userText: '', reply: '', error: 'no_speech' });
-    }
-
-    const profile = await detectProfile(transcript);
-    const reply = await chat(transcript, history, profile);
-
-    res.json({ userText: transcript, lang: profile.lang, gender: profile.gender, reply });
-  } catch (e) {
-    console.error(e);
-    try { if (req.file) fs.unlinkSync(req.file.path); } catch (_) {}
     res.status(500).json({ error: e.message });
   }
 });
