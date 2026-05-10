@@ -78,6 +78,22 @@ async function chat(text, history, profile) {
   return d.choices[0].message.content;
 }
 
+// Text-only endpoint (browser SpeechRecognition already did STT)
+app.post('/api/talk-text', async (req, res) => {
+  try {
+    const { text, history } = req.body || {};
+    if (!text || !text.trim()) return res.status(400).json({ error: 'No text' });
+
+    const profile = await detectProfile(text);
+    const reply = await chat(text, history || [], profile);
+
+    res.json({ userText: text, lang: profile.lang, gender: profile.gender, reply });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/talk', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No audio' });
