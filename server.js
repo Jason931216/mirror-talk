@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { readFileSync, unlinkSync } from 'fs';
+import { readFileSync, unlinkSync, openAsBlob } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,26 +19,17 @@ if (!DK || !GK) { console.error('Missing DEEPSEEK_KEY or GROQ_KEY env vars'); pr
 
 // STT via Groq Whisper (native FormData, Node 22)
 async function stt(audioPath) {
-  const buf = readFileSync(audioPath);
-  console.log('STT audio size:', buf.length);
-
-  const boundary = '----Mirror' + Math.random().toString(36).substring(2, 10);
-  const parts = [
-    `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3`,
-    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.webm"\r\nContent-Type: audio/webm\r\n\r\n`,
-    buf,
-    `\r\n--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\nzh`,
-    `--${boundary}--`
-  ];
-  const body = Buffer.concat(parts.map(p => typeof p === 'string' ? Buffer.from(p) : p));
+  const blob = await openAsBlob(audioPath, { type: 'audio/webm' });
+  const buf = readFileSync(audioPath); console.log('STT audio size:', buf.length);
+  const fd = new FormData();
+  fd.append('model', 'whisper-large-v3');
+  fd.append('file', blob, 'audio.webm');
+  fd.append('language', 'zh');
 
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GK}`,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`
-    },
-    body
+    headers: { 'Authorization': `Bearer ${GK}` },
+    body: fd
   });
   if (!res.ok) { const t = await res.text(); throw new Error(`STT ${res.status}: ${t.substring(0, 100)}`); }
   const d = await res.json();
